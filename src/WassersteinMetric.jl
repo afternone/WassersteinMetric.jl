@@ -1,5 +1,12 @@
 module WassersteinMetric
 
-# package code goes here
+using JuMP
+using Clp
+using Graphs
+using ProgressMeter
+
+export get_wasserstein_metric
+
+include("wasserstein.jl")
 
 end # module
