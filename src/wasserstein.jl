@@ -55,7 +55,7 @@ function get_wasserstein_metric(cityname)
 end
 
 #get wasserstein distance matrix
-function getwsdm(edge,ghh=1,wei=ones(size(edge,1)))
+function _getwsdm(edge,ghh=1,wei=ones(size(edge,1)))
 	wei=wei[edge[:,1].<edge[:,2]]
     edge=[edge[edge[:,1].<edge[:,2],1] edge[edge[:,1].<edge[:,2],2]]
     N=maximum(edge)
@@ -93,4 +93,41 @@ function getwsdm(edge,ghh=1,wei=ones(size(edge,1)))
 	next!(p)
     end
     sum(wsm)/size(edge,1)
+end
+
+function getwsdm(edge, ghh=1)
+    N=max(maximum(findn(edge)[1]), maximum(findn(edge)[2]))
+    adj=edge+edge'
+    adjh=adj^ghh
+    dist=sparse(findn(edge)[1],findn(edge)[2],ones(nnz(edge)), N, N)
+    dist=dist+dist'
+	sp=floyd_warshall(1./dist)
+    wsm=spzeros(N,N)
+    p=Progress(N*N, 1, "Computing initial pass...")
+    for jw=1:N,iw=jw+1:N
+		if adj[iw,jw]>0
+			xneis=find(adjh[iw,:])
+			xsize=size(xneis,1)
+			xwei=findnz(adjh[iw,:])[3]./sum(findnz(adjh[iw,:])[3])
+			yneis=find(adjh[jw,:])
+			ysize=size(yneis,1)
+			ywei=findnz(adjh[jw,:])[3]./sum(findnz(adjh[jw,:])[3])
+			f=[xwei;ywei]
+			b=zeros(xsize,ysize)
+			for j=1:ysize,i=1:xsize
+				 b[i,j]=sp[xneis[i],yneis[j]]
+			end
+			b=reshape(b',xsize*ysize,1)
+			A=zeros(0,xsize+ysize)
+			IY=eye(ysize)
+			for er=1:xsize
+				U=zeros(ysize,xsize)
+				U[:,er]=1
+				A=vcat(A,hcat(U,IY))
+			end
+			wsm[iw,jw]=linprog(f,A,b)
+		end
+	next!(p)
+    end
+    sum(wsm)/nnz(edge)
 end
